@@ -5,33 +5,27 @@ Config = {
     AllowedDepartments = {
         {
             name = "LAPD",
-            clockInAce = "duty.clockin.lapd",
-            clockOutAce = "duty.clockout.lapd"
+            dutyAce = "duty.lapd"
         },
         {
             name = "BCSO",
-            clockInAce = "duty.clockin.bcso",
-            clockOutAce = "duty.clockout.bcso"
+            dutyAce = "duty.bcso"
         },
         {
             name = "ARMY",
-            clockInAce = "duty.clockin.army",
-            clockOutAce = "duty.clockout.army"
+            dutyAce = "duty.army"
         },
         {
             name = "MARINES",
-            clockInAce = "duty.clockin.marines",
-            clockOutAce = "duty.clockout.marines"
+            dutyAce = "duty.marines"
         },
         {
             name = "DHS",
-            clockInAce = "duty.clockin.dhs",
-            clockOutAce = "duty.clockout.dhs"
+            dutyAce = "duty.dhs"
         },
         {
             name = "CIA",
-            clockInAce = "duty.clockin.cia",
-            clockOutAce = "duty.clockout.cia"
+            dutyAce = "duty.cia"
         }
     }
 }
