@@ -54,10 +54,10 @@ RegisterCommand('clockin', function(source, args, rawCommand)
         return
     end
 
-    if not IsPlayerAceAllowed(player, departmentConfig.clockInAce) then
+    if not IsPlayerAceAllowed(player, departmentConfig.dutyAce) then
         lib.notify({
             title = 'Error',
-            description = 'You do not have permission to clock in as ' .. departmentConfig.name,
+            description = 'You do not have permission for ' .. departmentConfig.name .. ' duty',
             type = 'error',
             duration = 5000
         })
@@ -130,10 +130,10 @@ RegisterCommand('clockout', function(source, args, rawCommand)
     local playerDetails = onDutyPlayers[player]
     local departmentConfig = playerDetails.config
 
-    if not IsPlayerAceAllowed(player, departmentConfig.clockOutAce) then
+    if not IsPlayerAceAllowed(player, departmentConfig.dutyAce) then
         lib.notify({
             title = 'Error',
-            description = 'You do not have permission to clock out from ' .. departmentConfig.name,
+            description = 'You no longer have permission for ' .. departmentConfig.name .. ' duty',
             type = 'error',
             duration = 5000
         })
