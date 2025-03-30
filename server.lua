@@ -14,6 +14,15 @@ function GetPlayerDiscordID(player)
     return nil
 end
 
+function GetDepartmentConfig(departmentName)
+    for _, department in ipairs(Config.AllowedDepartments) do
+        if department.name:lower() == departmentName:lower() then
+            return department
+        end
+    end
+    return nil
+end
+
 RegisterCommand('clockin', function(source, args, rawCommand)
     local player = tonumber(source)
     local department = args[1]
@@ -30,77 +39,154 @@ RegisterCommand('clockin', function(source, args, rawCommand)
         return
     end
 
-    local isValidDepartment = false
-    for _, allowedDepartment in ipairs(Config.AllowedDepartments) do
-        if allowedDepartment:lower() == department:lower() then
-            isValidDepartment = true
-            break
+    local departmentConfig = GetDepartmentConfig(department)
+    if not departmentConfig then
+        local departmentNames = {}
+        for _, dep in ipairs(Config.AllowedDepartments) do
+            table.insert(departmentNames, dep.name)
         end
-    end
-
-    if not isValidDepartment then
         lib.notify({
             title = 'Error',
-            description = 'Invalid department. Allowed departments: ' .. table.concat(Config.AllowedDepartments, ', '),
+            description = 'Invalid department. Allowed departments: ' .. table.concat(departmentNames, ', '),
             type = 'error',
             duration = 5000
         })
         return
     end
 
-    if IsPlayerAceAllowed(player, Config.DutyAce) then
-        if onDutyPlayers[player] then
-            lib.notify({
-                title = 'Error',
-                description = 'You are already on duty.',
-                type = 'error',
-                duration = 5000
-            })
-            return
-        end
-
-        onDutyPlayers[player] = { department = department, badge = badgeNumber, callsign = callsign }
-        dutyStartTime[player] = os.time()
-
-        TriggerClientEvent('createDutyBlip', player, department, badgeNumber, callsign)
-        onDutyBlips[player] = true
-
-        local playerName = GetPlayerName(player)
-        local discordID = GetPlayerDiscordID(player)
-        local discordTimestamp = math.floor(os.time())
-
-        lib.notify({
-            title = 'Success',
-            description = 'You have clocked in as ' .. department .. ' (Callsign: ' .. callsign .. ', Badge: ' .. badgeNumber .. ').',
-            type = 'success',
-            duration = 5000
-        })
-
-        local embed = {
-            title = ':green_circle: Clock-In Notification',
-            description = string.format(
-                '**%s** (Callsign: %s, Badge: %s) has clocked in.\n\n**Player ID:** %d\n**Discord:** <@%s>',
-                playerName, callsign, badgeNumber, player, discordID
-            ),
-            color = 65280,
-            fields = {
-                { name = 'Department', value = department, inline = true },
-                { name = 'Badge Number', value = badgeNumber, inline = true },
-                { name = 'Callsign', value = callsign, inline = true },
-                { name = 'Clock-In Time', value = string.format('<t:%d:t>', discordTimestamp), inline = true }
-            },
-            footer = { text = 'Northern Bay RP - Logged by FiveM Server' }
-        }
-        PerformHttpRequest(Config.WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
-    else
+    if not IsPlayerAceAllowed(player, departmentConfig.clockInAce) then
         lib.notify({
             title = 'Error',
-            description = 'You do not have permission to use this command.',
+            description = 'You do not have permission to clock in as ' .. departmentConfig.name,
             type = 'error',
             duration = 5000
         })
+        return
     end
+
+    if onDutyPlayers[player] then
+        lib.notify({
+            title = 'Error',
+            description = 'You are already on duty.',
+            type = 'error',
+            duration = 5000
+        })
+        return
+    end
+
+    onDutyPlayers[player] = { 
+        department = departmentConfig.name, 
+        badge = badgeNumber, 
+        callsign = callsign,
+        config = departmentConfig
+    }
+    dutyStartTime[player] = os.time()
+
+    TriggerClientEvent('createDutyBlip', player, departmentConfig.name, badgeNumber, callsign)
+    onDutyBlips[player] = true
+
+    local playerName = GetPlayerName(player)
+    local discordID = GetPlayerDiscordID(player)
+    local discordTimestamp = math.floor(os.time())
+
+    lib.notify({
+        title = 'Success',
+        description = 'You have clocked in as ' .. departmentConfig.name .. ' (Callsign: ' .. callsign .. ', Badge: ' .. badgeNumber .. ').',
+        type = 'success',
+        duration = 5000
+    })
+
+    local embed = {
+        title = ':green_circle: Clock-In Notification',
+        description = string.format(
+            '**%s** (Callsign: %s, Badge: %s) has clocked in.\n\n**Player ID:** %d\n**Discord:** <@%s>',
+            playerName, callsign, badgeNumber, player, discordID
+        ),
+        color = 65280,
+        fields = {
+            { name = 'Department', value = departmentConfig.name, inline = true },
+            { name = 'Badge Number', value = badgeNumber, inline = true },
+            { name = 'Callsign', value = callsign, inline = true },
+            { name = 'Clock-In Time', value = string.format('<t:%d:t>', discordTimestamp), inline = true }
+        },
+        footer = { text = 'Northern Bay RP - Logged by FiveM Server' }
+    }
+    PerformHttpRequest(WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
 end, false)
+
+RegisterCommand('clockout', function(source, args, rawCommand)
+    local player = tonumber(source)
+
+    if not onDutyPlayers[player] then
+        lib.notify({
+            title = 'Error',
+            description = 'You are not currently on duty.',
+            type = 'error',
+            duration = 5000
+        })
+        return
+    end
+
+    local playerDetails = onDutyPlayers[player]
+    local departmentConfig = playerDetails.config
+
+    if not IsPlayerAceAllowed(player, departmentConfig.clockOutAce) then
+        lib.notify({
+            title = 'Error',
+            description = 'You do not have permission to clock out from ' .. departmentConfig.name,
+            type = 'error',
+            duration = 5000
+        })
+        return
+    end
+
+    local startTime = dutyStartTime[player]
+    local currentTime = os.time()
+    local durationSeconds = currentTime - startTime
+    local durationFormatted = FormatDuration(durationSeconds)
+
+    onDutyPlayers[player] = nil
+    dutyStartTime[player] = nil
+        
+    TriggerClientEvent('removeDutyBlip', player)
+    onDutyBlips[player] = nil
+
+    local playerName = GetPlayerName(player)
+    local discordID = GetPlayerDiscordID(player)
+    local discordTimestamp = math.floor(os.time())
+
+    lib.notify({
+        title = 'Success',
+        description = 'You have clocked out. Duration: ' .. durationFormatted,
+        type = 'success',
+        duration = 5000
+    })
+
+    local embed = {
+        title = ':red_circle: Clock-Out Notification',
+        description = string.format(
+            '**%s** (Callsign: %s, Badge: %s) has clocked out.\n\n**Duration:** %s\n**Player ID:** %d\n**Discord:** <@%s>',
+            playerName,
+            playerDetails.callsign,
+            playerDetails.badge,
+            durationFormatted,
+            player,
+            discordID
+        ),
+        color = 16711680,
+        fields = {
+            { name = 'Player Name:', value = playerName, inline = true },
+            { name = 'User ID:', value = discordID, inline = true },
+            { name = 'Department:', value = departmentConfig.name, inline = true },
+            { name = 'Badge Number:', value = playerDetails.badge, inline = true },
+            { name = 'Callsign', value = playerDetails.callsign, inline = true },
+            { name = 'Clock-Out Time', value = string.format('<t:%d:t>', discordTimestamp), inline = true }
+        },
+        footer = { text = 'Northern Bay RP - Logged by FiveM Server' }
+    }
+    PerformHttpRequest(WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
+end, false)
+
 
 RegisterCommand('911', function(source, args, rawCommand)
     local player = tonumber(source)
@@ -172,79 +258,6 @@ RegisterCommand('dutytime', function(source, args, rawCommand)
         lib.notify({
             title = 'Error',
             description = 'You are not on duty.',
-            type = 'error',
-            duration = 5000
-        })
-    end
-end, false)
-
-RegisterCommand('clockout', function(source, args, rawCommand)
-    local player = tonumber(source)
-
-    if IsPlayerAceAllowed(player, Config.OffDutyACE) then
-        if onDutyPlayers[player] then
-            local playerDetails = onDutyPlayers[player]
-            local startTime = dutyStartTime[player]
-            local currentTime = os.time()
-            local durationSeconds = currentTime - startTime
-            local durationFormatted = FormatDuration(durationSeconds)
-
-            onDutyPlayers[player] = nil
-            dutyStartTime[player] = nil
-                
-            TriggerClientEvent('removeDutyBlip', player)
-            onDutyBlips[player] = nil
-
-            local playerName = GetPlayerName(player)
-            local discordID = GetPlayerDiscordID(player)
-            local department = playerDetails.department or "Unknown"
-            local badgeNumber = playerDetails.badge or "Unknown"
-            local callsign = playerDetails.callsign or "Unknown"
-            local timestamp = os.date('%Y-%m-%d %H:%M:%S')
-            local discordTimestamp = math.floor(os.time())
-
-            lib.notify({
-                title = 'Success',
-                description = 'You have clocked out. Duration: ' .. durationFormatted,
-                type = 'success',
-                duration = 5000
-            })
-
-            local embed = {
-                title = ':red_circle: Clock-Out Notification',
-                description = string.format(
-                    '**%s** (Callsign: %s, Badge: %s) has clocked out.\n\n**Duration:** %s\n**Player ID:** %d\n**Discord:** <@%s>',
-                    playerName,
-                    callsign,
-                    badgeNumber,
-                    durationFormatted,
-                    player,
-                    discordID
-                ),
-                color = 16711680,
-                fields = {
-                    { name = 'Player Name:', value = playerName, inline = true },
-                    { name = 'User ID:', value = discordID, inline = true },
-                    { name = 'Department:', value = department, inline = true },
-                    { name = 'Badge Number:', value = badgeNumber, inline = true },
-                    { name = 'Callsign', value = callsign, inline = true },
-                    { name = 'Clock-Out Time', value = string.format('<t:%d:t>', discordTimestamp), inline = true }
-                },
-                footer = { text = 'Your Server Name - Logged by FiveM Server' }
-            }
-            PerformHttpRequest(WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
-        else
-            lib.notify({
-                title = 'Error',
-                description = 'You are not currently on duty.',
-                type = 'error',
-                duration = 5000
-            })
-        end
-    else
-        lib.notify({
-            title = 'Error',
-            description = 'You do not have permission to use this command.',
             type = 'error',
             duration = 5000
         })
