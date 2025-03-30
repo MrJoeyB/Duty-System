@@ -14,11 +14,6 @@ function GetPlayerDiscordID(player)
     return nil
 end
 
-local ERROR_COLOR = '#FF0000'
-local SUCCESS_COLOR = '#00FF00'
-local TEXT_COLOR = '#FFFFFF'
-local DARK_TEXT_COLOR = '#000000'
-
 RegisterCommand('clockin', function(source, args, rawCommand)
     local player = tonumber(source)
     local department = args[1]
@@ -26,11 +21,11 @@ RegisterCommand('clockin', function(source, args, rawCommand)
     local callsign = args[3]
 
     if not department or not badgeNumber or not callsign then
-        TriggerClientEvent('nd-notify:client:sendAlert', source, {
+        lib.notify({
+            title = 'Error',
+            description = 'Usage: /clockin [department] [badge] [callsign]',
             type = 'error',
-            text = 'Usage: /clockin [department] [badge] [callsign]',
-            length = 5000,
-            style = { ['background-color'] = ERROR_COLOR, ['color'] = TEXT_COLOR }
+            duration = 5000
         })
         return
     end
@@ -44,22 +39,22 @@ RegisterCommand('clockin', function(source, args, rawCommand)
     end
 
     if not isValidDepartment then
-        TriggerClientEvent('nd-notify:client:sendAlert', source, {
+        lib.notify({
+            title = 'Error',
+            description = 'Invalid department. Allowed departments: ' .. table.concat(Config.AllowedDepartments, ', '),
             type = 'error',
-            text = 'Invalid department. Allowed departments: ' .. table.concat(Config.AllowedDepartments, ', '),
-            length = 5000,
-            style = { ['background-color'] = ERROR_COLOR, ['color'] = TEXT_COLOR }
+            duration = 5000
         })
         return
     end
 
     if IsPlayerAceAllowed(player, Config.DutyAce) then
         if onDutyPlayers[player] then
-            TriggerClientEvent('nd-notify:client:sendAlert', source, {
+            lib.notify({
+                title = 'Error',
+                description = 'You are already on duty.',
                 type = 'error',
-                text = 'You are already on duty.',
-                length = 5000,
-                style = { ['background-color'] = ERROR_COLOR, ['color'] = TEXT_COLOR }
+                duration = 5000
             })
             return
         end
@@ -74,11 +69,11 @@ RegisterCommand('clockin', function(source, args, rawCommand)
         local discordID = GetPlayerDiscordID(player)
         local discordTimestamp = math.floor(os.time())
 
-        TriggerClientEvent('nd-notify:client:sendAlert', source, {
+        lib.notify({
+            title = 'Success',
+            description = 'You have clocked in as ' .. department .. ' (Callsign: ' .. callsign .. ', Badge: ' .. badgeNumber .. ').',
             type = 'success',
-            text = 'You have clocked in as ' .. department .. ' (Callsign: ' .. callsign .. ', Badge: ' .. badgeNumber .. ').',
-            length = 5000,
-            style = { ['background-color'] = SUCCESS_COLOR, ['color'] = DARK_TEXT_COLOR }
+            duration = 5000
         })
 
         local embed = {
@@ -98,11 +93,11 @@ RegisterCommand('clockin', function(source, args, rawCommand)
         }
         PerformHttpRequest(Config.WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
     else
-        TriggerClientEvent('nd-notify:client:sendAlert', source, {
+        lib.notify({
+            title = 'Error',
+            description = 'You do not have permission to use this command.',
             type = 'error',
-            text = 'You do not have permission to use this command.',
-            length = 5000,
-            style = { ['background-color'] = ERROR_COLOR, ['color'] = TEXT_COLOR }
+            duration = 5000
         })
     end
 end, false)
@@ -114,21 +109,21 @@ RegisterCommand('911', function(source, args, rawCommand)
     local nearestPostal = getNearestPostal(coords)
 
     if reason == '' then
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'Usage: /911 [reason]',
             type = 'error',
-            text = 'Usage: /911 [reason]',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
         return
     end
 
     for clockedInPlayer, info in pairs(onDutyPlayers) do
-        TriggerClientEvent('nd-notify:client:sendAlert', clockedInPlayer, { 
-            type = 'info',
-            text = '911 Call: ' .. reason .. ' | Postal: ' .. nearestPostal,
-            length = 10000,
-            style = { ['background-color'] = '#0000FF', ['color'] = '#FFFFFF' }
+        lib.notify({
+            title = '911 Call',
+            description = '911 Call: ' .. reason .. ' | Postal: ' .. nearestPostal,
+            type = 'inform',
+            duration = 10000
         })
 
         local playerName = GetPlayerName(player)
@@ -167,18 +162,18 @@ RegisterCommand('dutytime', function(source, args, rawCommand)
 
         local timeString = string.format("%02d:%02d:%02d", hours, minutes, seconds)
 
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
-            type = 'info',
-            text = 'You have been on duty for ' .. timeString .. '.',
-            length = 5000,
-            style = { ['background-color'] = '#0000FF', ['color'] = '#FFFFFF' }
+        lib.notify({
+            title = 'Duty Time',
+            description = 'You have been on duty for ' .. timeString .. '.',
+            type = 'inform',
+            duration = 5000
         })
     else
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'You are not on duty.',
             type = 'error',
-            text = 'You are not on duty.',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
     end
 end, false)
@@ -208,11 +203,11 @@ RegisterCommand('clockout', function(source, args, rawCommand)
             local timestamp = os.date('%Y-%m-%d %H:%M:%S')
             local discordTimestamp = math.floor(os.time())
 
-            TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+            lib.notify({
+                title = 'Success',
+                description = 'You have clocked out. Duration: ' .. durationFormatted,
                 type = 'success',
-                text = 'You have clocked out. Duration: ' .. durationFormatted,
-                length = 5000,
-                style = { ['background-color'] = '#00FF00', ['color'] = '#000000' }
+                duration = 5000
             })
 
             local embed = {
@@ -239,19 +234,19 @@ RegisterCommand('clockout', function(source, args, rawCommand)
             }
             PerformHttpRequest(WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
         else
-            TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+            lib.notify({
+                title = 'Error',
+                description = 'You are not currently on duty.',
                 type = 'error',
-                text = 'You are not currently on duty.',
-                length = 5000,
-                style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+                duration = 5000
             })
         end
     else
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'You do not have permission to use this command.',
             type = 'error',
-            text = 'You do not have permission to use this command.',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
     end
 end, false)
@@ -261,31 +256,31 @@ RegisterCommand('kickoffduty', function(source, args, rawCommand)
     local targetPlayerID = tonumber(args[1])
 
     if not targetPlayerID then
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'Usage: /kickoffduty [targetPlayerID]',
             type = 'error',
-            text = 'Usage: /kickoffduty [targetPlayerID]',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
         return
     end
 
     if not IsPlayerAceAllowed(player, Config.KickAce) then
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'You do not have permission to use this command.',
             type = 'error',
-            text = 'You do not have permission to use this command.',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
         return
     end
 
     if not GetPlayerName(targetPlayerID) then
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'The specified player (ID: ' .. targetPlayerID .. ') is not online or does not exist.',
             type = 'error',
-            text = 'The specified player (ID: ' .. targetPlayerID .. ') is not online or does not exist.',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
         return
     end
@@ -300,11 +295,11 @@ RegisterCommand('kickoffduty', function(source, args, rawCommand)
         local timestamp = os.date('%Y-%m-%d %H:%M:%S')
         local discordTimestamp = math.floor(os.time())
 
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Success',
+            description = 'You have kicked ' .. playerName .. ' (ID: ' .. targetPlayerID .. ') off duty.',
             type = 'success',
-            text = 'You have kicked ' .. playerName .. ' (ID: ' .. targetPlayerID .. ') off duty.',
-            length = 5000,
-            style = { ['background-color'] = '#00FF00', ['color'] = '#000000' }
+            duration = 5000
         })
 
         local embed = {
@@ -328,34 +323,43 @@ RegisterCommand('kickoffduty', function(source, args, rawCommand)
         }
         PerformHttpRequest(WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
     else
-        TriggerClientEvent('nd-notify:client:sendAlert', source, { 
+        lib.notify({
+            title = 'Error',
+            description = 'The specified player (ID: ' .. targetPlayerID .. ') is not currently on duty.',
             type = 'error',
-            text = 'The specified player (ID: ' .. targetPlayerID .. ') is not currently on duty.',
-            length = 5000,
-            style = { ['background-color'] = '#FF0000', ['color'] = '#FFFFFF' }
+            duration = 5000
         })
     end
 end, false)
-
 
 RegisterCommand('onduty', function(source, args, rawCommand)
     local player = source
 
     if IsPlayerAceAllowed(player, REQUIRED_PERMISSION) then
-        local message = '^6On-duty players:\n'
+        local message = 'On-duty players:\n'
 
         for targetPlayerID, data in pairs(onDutyPlayers) do
             local playerName = GetPlayerName(targetPlayerID)
             local department = data.department
             local badgeNumber = data.badge
             local callsign = data.callsign
-            local formattedLine = '^7' .. playerName .. ' (' .. department .. ', Badge ' .. badgeNumber .. ', Call Sign ' .. callsign .. ') (ID: ' .. targetPlayerID .. ')\n'
+            local formattedLine = playerName .. ' (' .. department .. ', Badge ' .. badgeNumber .. ', Call Sign ' .. callsign .. ') (ID: ' .. targetPlayerID .. ')\n'
             message = message .. formattedLine
         end
 
-        TriggerClientEvent('chatMessage', player, message)
+        lib.notify({
+            title = 'On-Duty Players',
+            description = message,
+            type = 'inform',
+            duration = 10000
+        })
     else
-        TriggerClientEvent('chatMessage', player, '^3You do not have permission to use this command.')
+        lib.notify({
+            title = 'Error',
+            description = 'You do not have permission to use this command.',
+            type = 'error',
+            duration = 5000
+        })
     end
 end, false)
 
@@ -376,9 +380,6 @@ AddEventHandler('playerDropped', function(reason)
         onDutyPlayers[player] = nil
         dutyStartTime[player] = nil
 
-        onDutyPlayers[player] = nil
-        dutyStartTime[player] = nil
-
         local timestamp = os.date('%Y-%m-%d %H:%M:%S')
         local embed = {
             title = ':red_circle: Automatic Clock-Out',
@@ -389,7 +390,6 @@ AddEventHandler('playerDropped', function(reason)
         PerformHttpRequest(WEBHOOK_URL, function(statusCode, response, headers) end, 'POST', json.encode({ embeds = { embed } }), { ['Content-Type'] = 'application/json' })
     end
 end)
-
 
 function FormatDuration(seconds)
     local hours = math.floor(seconds / 3600)
